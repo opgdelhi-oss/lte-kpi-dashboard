@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Nokia 4G LTE & VoLTE Network Performance Intelligence Dashboard with Separate Site Name, LNCEL, Operator (AIRTEL & VIL), and Date Filtering.">
+    <title>4G LTE & VoLTE RAN Performance Dashboard</title>
+    
+    <!-- External Libraries (Chart.js for analytics, SheetJS for client-side Excel parsing) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- Application Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <aside class="dashboard-sidebar" aria-label="Dashboard navigation">
+        <a class="sidebar-brand" href="#overview" data-dashboard-nav>
+            <span class="sidebar-brand-icon" aria-hidden="true">📡</span>
+            <span>
+                <strong>RAN Intelligence</strong>
+                <small>LTE &amp; VoLTE</small>
+            </span>
+        </a>
+        <div class="sidebar-section-title">DASHBOARD</div>
+        <nav class="sidebar-nav">
+            <a class="sidebar-link active" href="#overview" data-dashboard-nav>
+                <span class="sidebar-link-icon" aria-hidden="true">⌂</span><span>Overview</span>
+            </a>
+            <a class="sidebar-link" href="#filters" data-dashboard-nav>
+                <span class="sidebar-link-icon" aria-hidden="true">⚙</span><span>Filters</span>
+            </a>
+            <a class="sidebar-link" href="#scorecards" data-dashboard-nav>
+                <span class="sidebar-link-icon" aria-hidden="true">▦</span><span>KPI Scorecards</span>
+            </a>
+            <a class="sidebar-link" href="#analytics" data-dashboard-nav>
+                <span class="sidebar-link-icon" aria-hidden="true">▥</span><span>Analytics</span>
+            </a>
+        </nav>
+        <div class="sidebar-section-title">REPORTS</div>
+        <nav class="sidebar-nav">
+            <a class="sidebar-link" href="#daywiseSummarySection" data-dashboard-nav data-requires-daily>
+                <span class="sidebar-link-icon" aria-hidden="true">▤</span><span>Day Wise Summary</span>
+            </a>
+            <a class="sidebar-link" href="#sectorGrid" data-dashboard-nav>
+                <span class="sidebar-link-icon" aria-hidden="true">▧</span><span>Sector Performance</span>
+            </a>
+            <a class="sidebar-link" href="#networkInventory" data-dashboard-nav>
+                <span class="sidebar-link-icon" aria-hidden="true">🖧</span><span>Network &amp; Hardware Inventory</span>
+            </a>
+            <div class="sidebar-subnav" role="group" aria-label="Network and hardware inventory sections">
+                <a class="sidebar-sublink" href="#inventorySiteAssets" data-dashboard-nav data-inventory-nav>
+                    <span aria-hidden="true">▦</span><span>Site Asset</span>
+                </a>
+                <a class="sidebar-sublink" href="#inventoryIpAddresses" data-dashboard-nav data-inventory-nav>
+                    <span aria-hidden="true">▤</span><span>IP Address</span>
+                </a>
+            </div>
+        </nav>
+        <div class="sidebar-sync">
+            <button class="btn btn-primary" id="syncKpiDataBtn" type="button" aria-describedby="syncKpiDataStatus">
+                <span aria-hidden="true">↻</span><span>SYNC</span>
+            </button>
+            <p id="syncKpiDataStatus" role="status" aria-live="polite"></p>
+        </div>
+    </aside>
+
+    <!-- App Top Navigation -->
+    <header class="app-header">
+        <div class="brand-section">
+            <div class="brand-logo" title="LTE & VoLTE Performance">📡</div>
+            <div class="brand-titles">
+                <h1>4G LTE &amp; VoLTE RAN Intelligence</h1>
+                <div class="subtitle">Multi-Operator Performance &amp; SLA Degradation Analytics</div>
+            </div>
+            <img class="partner-logo" src="assets/cloudextel-logo.png" alt="CloudExtel">
+        </div>
+
+        <div class="header-actions">
+            <!-- View Mode Selector -->
+            <div class="view-mode-group" id="viewModeContainer" title="Select dashboard data view">
+                <button class="view-mode-btn active" data-view-mode="hourly" type="button">24 Hour</button>
+                <button class="view-mode-btn" data-view-mode="daily" type="button">Day Wise</button>
+                <button class="view-mode-btn" data-view-mode="weekly" type="button">Weekly</button>
+                <button class="view-mode-btn" data-view-mode="monthly" type="button">Monthly</button>
+            </div>
+
+            <!-- Operator Quick-Switch Pills -->
+            <div class="operator-pill-group" id="operatorPillContainer" title="Quick filter by Operator">
+                <!-- Dynamically populated: All Operators, AIRTEL, VIL -->
+            </div>
+
+            <button id="loadUserReportBtn" class="btn btn-outline" title="Reload user's 24-Hour Nokia 4G report">
+                📊 My Excel Report
+            </button>
+            <button id="loadSampleBtn" class="btn btn-outline" title="Switch to 14-day simulation sample">
+                🔄 Simulation
+            </button>
+            <button id="exportCsvBtn" class="btn btn-outline" title="Export current filtered view to CSV">
+                📥 Export CSV
+            </button>
+            <button id="themeToggleBtn" class="btn btn-outline" title="Toggle Light/Dark Theme">
+                ☀️ Light Mode
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Body -->
+    <main class="dashboard-container">
+
+        <!-- Data Source & Drag/Drop Excel Ingestion Banner -->
+        <section class="data-source-banner" id="overview">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <div class="source-meta">
+                    <h2 id="dataSourceTitle">Final_24 hrs_Hourly 4G KPI Report 24-09-2026.xlsx</h2>
+                    <p id="dataSourceSubtitle">23,324 hourly records | Operators: AIRTEL &amp; VIL | 28 Sites | 324 Sectors</p>
+                </div>
+            </div>
+
+            <div class="sector-summary-panel">
+                <div class="chart-card-header">
+                    <div class="chart-title-box">
+                        <h3>Total Sectors by Operator</h3>
+                        <p id="sectorDistributionSubtitle">Sector distribution by operator and band</p>
+                    </div>
+                </div>
+                <div class="sector-summary-chart">
+                    <canvas id="chartSectorDistribution"></canvas>
+                </div>
+            </div>
+            
+            <div class="upload-zone-wrapper">
+                <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display: none;">
+                <div class="file-dropzone" id="dropzone" title="Click or Drag & Drop another raw LTE KPI Excel/CSV file">
+                    <span style="font-size: 1.3rem;">📁</span>
+                    <div class="dropzone-text">
+                        <strong>Upload New Excel / CSV</strong> or drag &amp; drop file here (.xlsx, .xls, .csv)
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Anomaly Alert Banner -->
+        <section class="alert-banner" id="alertBanner" style="display: none;">
+            <div class="alert-content">
+                <span class="alert-icon">⚠️</span>
+                <div id="alertText"></div>
+            </div>
+            <span class="alert-badge">SLA Breach</span>
+        </section>
+
+        <!-- Multi-Dimensional Filter Toolbar (Separate Site & LNCEL) -->
+        <section class="filter-toolbar" id="filters">
+
+            <!-- Filter 1: Operator -->
+            <div class="filter-group" style="min-width: 140px;">
+                <label class="filter-label" for="filterOperator">Operator</label>
+                <select id="filterOperator" class="form-select">
+                    <option value="ALL">All Operators</option>
+                </select>
+            </div>
+
+            <!-- Filter 2: Date -->
+            <div class="filter-group" style="min-width: 140px;">
+                <label class="filter-label" for="filterDate">Date</label>
+                <select id="filterDate" class="form-select">
+                    <option value="ALL">All Dates</option>
+                </select>
+            </div>
+
+            <!-- Filter 3: Band -->
+            <div class="filter-group" style="min-width: 120px;">
+                <label class="filter-label" for="filterBand">Band / Layer</label>
+                <select id="filterBand" class="form-select">
+                    <option value="ALL">All Bands</option>
+                </select>
+            </div>
+
+            <!-- Filter 4: Hour -->
+            <div class="filter-group" style="min-width: 120px;">
+                <label class="filter-label" for="filterHour">Measurement Hour</label>
+                <select id="filterHour" class="form-select">
+                    <option value="ALL">All 24 Hours</option>
+                </select>
+            </div>
+
+            <!-- Filter 5: Site (MRBTS) Name -->
+            <div class="filter-group" style="flex: 2; min-width: 200px;">
+                <label class="filter-label" for="filterSite">Site / MRBTS Name</label>
+                <select id="filterSite" class="form-select">
+                    <option value="ALL">All Sites</option>
+                </select>
+            </div>
+
+            <!-- Filter 6: LNCEL (Sector ID) -->
+            <div class="filter-group" style="min-width: 140px;">
+                <label class="filter-label" for="filterLncel">LNCEL (Sector)</label>
+                <select id="filterLncel" class="form-select">
+                    <option value="ALL">All LNCELs</option>
+                </select>
+            </div>
+
+            <!-- Busy Hour Toggle -->
+            <div class="toggle-filter" title="Filter to Busy Hour only — 18:00 HRS (Peak Network Hour)">
+                <input type="checkbox" id="filterBusyHour">
+                <label for="filterBusyHour" class="toggle-label">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-text">⭐ Busy Hour 18:00</span>
+                </label>
+            </div>
+
+            <!-- Degraded Only Toggle -->
+            <div class="toggle-filter" title="Show only degraded cells with high drops or congestion">
+                <input type="checkbox" id="filterDegraded">
+                <label for="filterDegraded" class="toggle-label">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-text">🚨 Degraded Only</span>
+                </label>
+            </div>
+
+            <!-- Low Throughput / Low Utilization Toggle -->
+            <div class="toggle-filter" title="Show cells with DL throughput below 2 Mbps and DL PRB utilization below 60%">
+                <input type="checkbox" id="filterLowThroughputLowUtilization">
+                <label for="filterLowThroughputLowUtilization" class="toggle-label">
+                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-text">🐢 Low Thrpt &lt;2 / Util &lt;60%</span>
+                </label>
+            </div>
+
+            <div style="display: flex; align-items: flex-end; padding-top: 1rem;">
+                <button id="resetFiltersBtn" class="btn btn-outline" style="padding: 0.45rem 0.85rem; font-size: 0.8rem;">
+                    Reset Filters
+                </button>
+            </div>
+        </section>
+
+        <!-- Executive KPI Scorecards Grid (Dynamically updates per Operator) -->
+        <section class="kpi-cards-grid" id="scorecards">
+            
+            <!-- KPI 1: VoLTE Call Setup SR -->
+            <div class="kpi-card" id="kpiVolteCssr">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">VoLTE Call Setup SR</div>
+                        <span class="kpi-category">Voice Accessibility</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">99.85</span>
+                    <span class="kpi-unit">%</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&ge; 99.0%</span></div>
+                    <div class="trend-indicator up">▲ High Retainability</div>
+                </div>
+            </div>
+
+            <!-- KPI 2: RRC Setup SR -->
+            <div class="kpi-card" id="kpiRrcSr">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">RRC Setup SR</div>
+                        <span class="kpi-category">Data Accessibility</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">99.42</span>
+                    <span class="kpi-unit">%</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&ge; 98.5%</span></div>
+                    <div class="trend-indicator up">▲ 3GPP SLA</div>
+                </div>
+            </div>
+
+            <!-- KPI 3: VoLTE Drop Rate -->
+            <div class="kpi-card" id="kpiVolteDrop">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">VoLTE Drop Call Rate</div>
+                        <span class="kpi-category">Voice Retainability</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">0.18</span>
+                    <span class="kpi-unit">%</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&le; 1.0%</span></div>
+                    <div class="trend-indicator up">▼ Low Voice Drops</div>
+                </div>
+            </div>
+
+            <!-- KPI 4: Service Drop Rate -->
+            <div class="kpi-card" id="kpiServiceDrop">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">Service DCR (E-RAB)</div>
+                        <span class="kpi-category">Data Retainability</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">0.24</span>
+                    <span class="kpi-unit">%</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&le; 0.8%</span></div>
+                    <div class="trend-indicator up">▼ Low Abnormal Releases</div>
+                </div>
+            </div>
+
+            <!-- KPI 5: DL User Throughput -->
+            <div class="kpi-card" id="kpiDlThrpt">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">DL User Throughput</div>
+                        <span class="kpi-category">User Speed</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">16.85</span>
+                    <span class="kpi-unit">Mbps</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&ge; 3 Mbps</span></div>
+                    <div class="trend-indicator up">User Experience</div>
+                </div>
+            </div>
+
+            <!-- KPI 6: Total Data Volume -->
+            <div class="kpi-card" id="kpiTotalTraffic">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">Total Data Volume</div>
+                        <span class="kpi-category">Payload Volume</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">28.45</span>
+                    <span class="kpi-unit">TB</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">NSN Total Payload</div>
+                    <div class="trend-indicator up">Aggregate 24h</div>
+                </div>
+            </div>
+
+            <!-- KPI 7: VoLTE Traffic -->
+            <div class="kpi-card" id="kpiVolteTraffic">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">VoLTE Traffic</div>
+                        <span class="kpi-category">Voice Traffic</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">148.2</span>
+                    <span class="kpi-unit">Erl</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Total Erlangs</div>
+                    <div class="trend-indicator up">Voice Load</div>
+                </div>
+            </div>
+
+            <!-- KPI 8: DL PRB Utilization -->
+            <div class="kpi-card" id="kpiPrbUtil">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">DL PRB Utilization</div>
+                        <span class="kpi-category">Radio Load</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">52.4</span>
+                    <span class="kpi-unit">%</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&le; 80%</span></div>
+                    <div class="trend-indicator up">Adequate Headroom</div>
+                </div>
+            </div>
+
+            <!-- KPI 9: Cell Availability -->
+            <div class="kpi-card" id="kpiAvail">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">Cell Availability</div>
+                        <span class="kpi-category">Uptime</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">99.98</span>
+                    <span class="kpi-unit">%</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&ge; 99.5%</span></div>
+                    <div class="trend-indicator up">SLA Compliant</div>
+                </div>
+            </div>
+
+            <!-- KPI 10: Radio Quality CQI -->
+            <div class="kpi-card" id="kpiCqi">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">Average CQI</div>
+                        <span class="kpi-category">Channel Quality</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">9.8</span>
+                    <span class="kpi-unit">/15</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&ge; 8.5</span></div>
+                    <div class="trend-indicator up">Modulation</div>
+                </div>
+            </div>
+
+            <!-- KPI 11: Radio Quality SINR -->
+            <div class="kpi-card" id="kpiSinr">
+                <div class="kpi-card-header">
+                    <div>
+                        <div class="kpi-title">Average SINR</div>
+                        <span class="kpi-category">RF Cleanliness</span>
+                    </div>
+                    <span class="status-badge good">OPTIMAL</span>
+                </div>
+                <div class="kpi-value-row">
+                    <span class="kpi-value">12.4</span>
+                    <span class="kpi-unit">dB</span>
+                </div>
+                <div class="kpi-footer">
+                    <div class="kpi-target">Target: <span>&ge; 8.0 dB</span></div>
+                    <div class="trend-indicator up">Low Noise</div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Advanced Analytics Charts Section -->
+        <section class="analytics-grid" id="analytics">
+
+            <!-- Chart 1: Hourly DL User Speed vs DL PRB Congestion -->
+            <div class="chart-card col-8">
+                <div class="chart-card-header">
+                    <div class="chart-title-box">
+                        <h3 id="trendChartTitle">Hourly User Speed vs. Radio Congestion</h3>
+                        <p id="trendChartSubtitle">24-hour time-series tracking DL User Speed (Mbps) against PDSCH PRB Utilization (%)</p>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chartTrendThroughput"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Worst-Performing Sectors (Separate Site & LNCEL) -->
+            <div class="chart-card col-4">
+                <div class="chart-card-header">
+                    <div class="chart-title-box">
+                        <h3>Worst-Performing Sectors</h3>
+                        <p id="worstCellsChartSubtitle">Top sectors ranked by Drop Call Rate (%)</p>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chartWorstCells"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 3: 24-Hour Diurnal Payload & Connected UEs -->
+            <div class="chart-card col-6">
+                <div class="chart-card-header">
+                    <div class="chart-title-box">
+                        <h3 id="hourlyProfileChartTitle">24-Hour Payload &amp; Connected Users</h3>
+                        <p id="hourlyProfileChartSubtitle">Hourly total data payload (GB) and average connected UEs across all sites</p>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chartHourlyProfile"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 4: VoLTE Traffic vs VoLTE Drop Rate -->
+            <div class="chart-card col-6">
+                <div class="chart-card-header">
+                    <div class="chart-title-box">
+                        <h3 id="volteQualityChartTitle">VoLTE Traffic (Erl) vs. Drop Rate (%)</h3>
+                        <p id="volteQualityChartSubtitle">24-hour voice load profile and call drop correlation</p>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chartAccessibilityTrend"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 5: Last 8 Days — Day-wise Total Data Volume -->
+            <div class="chart-card col-8">
+                <div class="chart-card-header">
+                    <div class="chart-title-box">
+                        <h3 id="dailyVolumeChartTitle">📅 Last 8 Days — Total Data Volume (GB) per Operator</h3>
+                        <p id="dailyVolumeChartSubtitle">Day-wise aggregated data payload (GB) — AIRTEL &amp; VIL compared across the last 8 available dates</p>
+                    </div>
+                </div>
+                <div class="chart-body" style="height: 320px;">
+                    <canvas id="chartDailyVolume"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 6: Low Throughput / Low Utilization Sectors -->
+            <div class="chart-card col-4">
+                <div class="chart-card-header">
+                    <div class="chart-title-box">
+                        <h3>Low-Throughput Sectors</h3>
+                        <p id="lowThroughputChartSubtitle">Top sectors with DL throughput &lt; 2 Mbps and PRB utilization &lt; 60%</p>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="chartLowThroughputCells"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="data-table-section daywise-summary-section" id="daywiseSummarySection" style="display: none;">
+            <div class="table-header-row">
+                <div class="chart-title-box">
+                    <h3 id="periodSummaryTitle">8-Day KPI Summary</h3>
+                    <p>Day-wise dashboard summary from 17-Sep-26 through 24-Sep-26</p>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="lte-table daywise-summary-table">
+                    <thead>
+                        <tr>
+                            <th>Values</th>
+                            <th>17-Sep-26</th><th>18-Sep-26</th><th>19-Sep-26</th><th>20-Sep-26</th>
+                            <th>21-Sep-26</th><th>22-Sep-26</th><th>23-Sep-26</th><th>24-Sep-26</th>
+                        </tr>
+                    </thead>
+                    <tbody id="daywiseSummaryBody">
+                        <tr><th>No Of cells — LNCEL</th><td>198</td><td>198</td><td>198</td><td>198</td><td>198</td><td>198</td><td>198</td><td>198</td></tr>
+                        <tr><th>Cell Availability LTE-4G_KPI_Report</th><td>99.96</td><td>99.98</td><td>99.87</td><td>99.99</td><td>100</td><td>99.98</td><td>99.99</td><td>99.84</td></tr>
+                        <tr><th>NSN_Data Volume - Total_GB</th><td>14502.83</td><td>14149.85</td><td>13831.77</td><td>10969.82</td><td>15289.65</td><td>15368.19</td><td>15419.15</td><td>15505.5</td></tr>
+                        <tr><th>Nokia_LTE_VoLTE Traffic Erl</th><td>7211.25</td><td>6645.27</td><td>6442.96</td><td>4525.27</td><td>7913.98</td><td>8024.17</td><td>8186.28</td><td>8076.27</td></tr>
+                        <tr><th>Nokia_LTE_VoLTE Call Setup Success Rate</th><td>99.75</td><td>99.74</td><td>99.77</td><td>99.78</td><td>99.76</td><td>99.76</td><td>99.73</td><td>99.71</td></tr>
+                        <tr><th>E2E Call Setup Success Rate - All Bearer New</th><td>99.65</td><td>99.66</td><td>99.69</td><td>99.74</td><td>99.58</td><td>99.6</td><td>99.56</td><td>99.56</td></tr>
+                        <tr><th>NSN_LTE_VoLTE_Drop_Call_Rate</th><td>0.13</td><td>0.12</td><td>0.14</td><td>0.15</td><td>0.16</td><td>0.18</td><td>0.23</td><td>0.2</td></tr>
+                        <tr><th>NSN_LTE_DL Throughput Per UE (NA)</th><td>2848.71</td><td>3165.6</td><td>3528.2</td><td>5996.06</td><td>2659.03</td><td>2545.36</td><td>2566.61</td><td>2548.92</td></tr>
+                        <tr><th>NSN_LTE_UL Throughput Per UE (NA)</th><td>761.45</td><td>473.57</td><td>556.77</td><td>842.19</td><td>372.03</td><td>351.11</td><td>338.98</td><td>341.82</td></tr>
+                        <tr><th>No Of cells DCR &gt;2%</th><td>28</td><td>26</td><td>25</td><td>33</td><td>33</td><td>32</td><td>41</td><td>35</td></tr>
+                        <tr><th>No Of cells Throughput &lt;1.5 mbps_24 hrs</th><td>11</td><td>8</td><td>7</td><td>0</td><td>17</td><td>18</td><td>20</td><td>19</td></tr>
+                        <tr><th>No Of cells Throughput &lt;1.5 mbps_BBH</th><td>43</td><td>36</td><td>24</td><td>3</td><td>47</td><td>54</td><td>53</td><td>56</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Sector Performance Data Table Section (Clean Separate Site Name & LNCEL Columns) -->
+        <section class="data-table-section" id="sectorGrid">
+            <div class="table-header-row">
+                <div class="chart-title-box">
+                    <h3>Sector-Level RAN &amp; VoLTE Performance Grid</h3>
+                    <p>Aggregated metrics per sector with distinct Site Name, LNCEL, Operator, and Band</p>
+                </div>
+                <div class="table-search-box">
+                    <input type="text" id="tableSearch" class="form-input" placeholder="Search site (MRBTS), LNCEL, operator..." style="width: 320px;">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="lte-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="site">Site / MRBTS Name ⬍</th>
+                            <th data-sort="lncel">LNCEL ⬍</th>
+                            <th data-sort="operator">Operator ⬍</th>
+                            <th data-sort="band">Band ⬍</th>
+                            <th data-sort="rrcSr">RRC SR (%) ⬍</th>
+                            <th data-sort="volteCssr">VoLTE CSSR (%) ⬍</th>
+                            <th data-sort="volteDrop">VoLTE Drop (%) ⬍</th>
+                            <th data-sort="dropRate">Service DCR (%) ⬍</th>
+                            <th data-sort="dlThrpt">DL Thrpt (Mbps) ⬍</th>
+                            <th data-sort="dlPrb">DL PRB (%) ⬍</th>
+                            <th data-sort="totalTraffic">Data Volume (GB) ⬍</th>
+                            <th data-sort="volteErl">VoLTE (Erl) ⬍</th>
+                            <th data-sort="cqi">CQI ⬍</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cellTableBody">
+                        <!-- Populated dynamically by app.js -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-pagination">
+                <div id="paginationInfo">Showing 1-15 of sectors</div>
+                <div class="pagination-controls">
+                    <button id="prevPageBtn" class="btn btn-outline" style="padding: 0.35rem 0.75rem;">Previous</button>
+                    <button id="nextPageBtn" class="btn btn-outline" style="padding: 0.35rem 0.75rem;">Next</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="data-table-section inventory-section" id="networkInventory">
+            <div class="table-header-row">
+                <div class="chart-title-box">
+                    <h3>🖧 Network &amp; Hardware Inventory</h3>
+                    <p>Site-level FDD/TDD sector counts and installed platform and hardware quantities</p>
+                </div>
+            </div>
+            <div class="inventory-filter-controls">
+                <div class="inventory-site-filter">
+                    <label for="inventorySiteFilter">SEARCH SITE / MRBTS NAME</label>
+                    <div class="inventory-site-search">
+                        <input class="form-input" id="inventorySiteFilter" type="search" list="inventorySiteOptions"
+                            placeholder="Type or choose a site" autocomplete="off"
+                            aria-controls="inventoryTableBody inventoryIpTableBody">
+                        <datalist id="inventorySiteOptions"></datalist>
+                        <button class="btn btn-outline" id="clearInventorySiteFilterBtn" type="button" disabled>Clear</button>
+                    </div>
+                </div>
+                <div class="inventory-filter-summary">
+                    <p id="inventoryFilterStatus" role="status" aria-live="polite">Showing all sites.</p>
+                </div>
+                <div class="inventory-management-actions">
+                    <button class="btn btn-outline" id="addInventorySiteBtn" type="button">＋ Add Site</button>
+                    <button class="btn btn-outline" id="editInventorySiteBtn" type="button" disabled>✎ Edit Selected</button>
+                    <button class="btn btn-outline inventory-delete-button" id="deleteInventorySiteBtn" type="button" disabled>⌫ Delete Selected</button>
+                </div>
+            </div>
+            <div class="inventory-total-cards" id="inventoryTotalCards" aria-label="Overall hardware totals across all sites"></div>
+            <div class="table-responsive">
+                <table class="lte-table inventory-table" id="inventorySiteAssets">
+                    <thead>
+                        <tr>
+                            <th scope="col">S/N</th>
+                            <th scope="col">Site Name</th>
+                            <th scope="col">Physical platform</th>
+                            <th scope="col">ACOC</th>
+                            <th scope="col">ASOE</th>
+                            <th scope="col">ASIB</th>
+                            <th scope="col">ABIA</th>
+                            <th scope="col">ABIO</th>
+                            <th scope="col">AZHA -2500</th>
+                            <th scope="col">AHEB-1800</th>
+                            <th scope="col">AZNA-2300</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody">
+                        <tr><td>1</td><td>Church gate Rly Station (id: 654000)</td><td>4</td><td>1</td><td>0</td><td>1</td><td>3</td><td>0</td><td>2</td><td>3</td><td>3</td></tr>
+                        <tr><td>2</td><td>Marine Line Rly Station (id: 654004)</td><td>3</td><td>1</td><td>0</td><td>1</td><td>2</td><td>0</td><td>2</td><td>0</td><td>2</td></tr>
+                        <tr><td>3</td><td>Charni Road RLy Station (id: 654005)</td><td>3</td><td>1</td><td>0</td><td>1</td><td>2</td><td>0</td><td>2</td><td>0</td><td>2</td></tr>
+                        <tr><td>4</td><td>Grant Road Rly Station (id: 654009)</td><td>3</td><td>1</td><td>0</td><td>1</td><td>2</td><td>0</td><td>2</td><td>3</td><td>2</td></tr>
+                        <tr><td>5</td><td>Mumbai Central Rly Station (id: 451877)</td><td>3</td><td>1</td><td>0</td><td>2</td><td>4</td><td>0</td><td>3</td><td>3</td><td>3</td></tr>
+                        <tr><td>6</td><td>Mahalaxmi Rly Station (id: 654001)</td><td>1</td><td>1</td><td>1</td><td>1</td><td>2</td><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+                        <tr><td>7</td><td>Lower Parel Rly Station (id: 654002)</td><td>2</td><td>1</td><td>0</td><td>1</td><td>2</td><td>0</td><td>2</td><td>2</td><td>2</td></tr>
+                        <tr><td>8</td><td>Prabhadevi Rly Station (id: 654003)</td><td>1</td><td>1</td><td>1</td><td>1</td><td>2</td><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+                        <tr><td>9</td><td>Dadar Western Rly Station (id: 654007)</td><td>6</td><td>1</td><td>0</td><td>2</td><td>2</td><td>1</td><td>6</td><td>4</td><td>5</td></tr>
+                        <tr><td>10</td><td>Dadar Central Rly Station (id: 654010)</td><td>4</td><td>1</td><td>0</td><td>2</td><td>2</td><td>1</td><td>4</td><td>4</td><td>4</td></tr>
+                        <tr><td>11</td><td>Matunga Rly station (id: 432851)</td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+                        <tr><td>12</td><td>Mahim Rly Station (id: 432852)</td><td>3</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>2</td><td>1</td><td>0</td></tr>
+                        <tr><td>13</td><td>Bandra Rly Station (id: 432855)</td><td>4</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>3</td><td>2</td><td>0</td></tr>
+                        <tr><td>14</td><td>Bandra Terminus Rly Station (id: 432856)</td><td>4</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>4</td><td>0</td><td>0</td></tr>
+                        <tr><td>15</td><td>Khar Rly Station (id: 432857)</td><td>3</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>2</td><td>1</td><td>0</td></tr>
+                        <tr><td>16</td><td>Santacruz Rly Station (id: 432859)</td><td>2</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>2</td><td>1</td><td>0</td></tr>
+                        <tr><td>17</td><td>Vile Parle Rly Station (id: 432860)</td><td>2</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>0</td><td>0</td></tr>
+                        <tr><td>18</td><td>Andheri Rly Station (id: 532868)</td><td>5</td><td>1</td><td>0</td><td>1</td><td>2</td><td>1</td><td>5</td><td>5</td><td>0</td></tr>
+                        <tr><td>19</td><td>Jogeshwari Rly Station (id: 432870)</td><td>2</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>2</td><td>2</td><td>0</td></tr>
+                        <tr><td>20</td><td>Ram Mandir Rly station (id: 432871)</td><td>2</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+                        <tr><td>21</td><td>Goregaon Rly station (id: 432872)</td><td>3</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>3</td><td>1</td><td>0</td></tr>
+                        <tr><td>22</td><td>Malad Rly Station (id: 432874)</td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+                        <tr><td>23</td><td>Kandivali Rly Station (id: 432877)</td><td>2</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>2</td><td>0</td><td>0</td></tr>
+                        <tr><td>24</td><td>Borivali Rly Station_TDD_PF3 (id: 432879)</td><td>4</td><td>1</td><td>0</td><td>1</td><td>2</td><td>1</td><td>4</td><td>4</td><td>0</td></tr>
+                        <tr><td>25</td><td>Borivali Rly Station_TDD_PF8 (id: 433637)</td><td>3</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>3</td><td>2</td><td>0</td></tr>
+                        <tr><td>26</td><td>Dahisar Rly Station (id: 432883)</td><td>3</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>3</td><td>0</td><td>0</td></tr>
+                        <tr><td>27</td><td>Mira Road Rly Station (id: 432886)</td><td>3</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td><td>3</td><td>0</td><td>0</td></tr>
+                        <tr><td>28</td><td>Bhayandar Rly Station_TDD (id: 432887)</td><td>3</td><td>0</td><td>1</td><td>1</td><td>2</td><td>0</td><td>3</td><td>1</td><td>0</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr><th scope="row" colspan="2">Grand Total</th><td>80</td><td>12</td><td>18</td><td>31</td><td>53</td><td>4</td><td>71</td><td>42</td><td>25</td></tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="inventory-ip-section" id="inventoryIpAddresses">
+                <div class="chart-title-box">
+                    <h3>Site IP Address Inventory</h3>
+                    <p>MRBTS and switch management IP addresses by site</p>
+                </div>
+                <div class="table-responsive">
+                    <table class="lte-table inventory-ip-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Site Name</th>
+                                <th scope="col">MRBTS IP</th>
+                                <th scope="col">Switch IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryIpTableBody">
+                            <tr><td>Andheri Rly Station (id: 532868)</td><td><a href="https://100.67.16.101/" target="_blank" rel="noopener noreferrer">100.67.16.101</a></td><td><a href="https://100.67.16.205/" target="_blank" rel="noopener noreferrer">100.67.16.205</a></td></tr>
+                            <tr><td>Bandra Rly Station (id: 432855)</td><td><a href="https://100.67.16.121/" target="_blank" rel="noopener noreferrer">100.67.16.121</a></td><td><a href="https://100.67.16.225/" target="_blank" rel="noopener noreferrer">100.67.16.225</a></td></tr>
+                            <tr><td>Bandra Terminus Rly Station (id: 432856)</td><td><a href="https://100.67.23.81/" target="_blank" rel="noopener noreferrer">100.67.23.81</a></td><td><a href="https://100.67.16.117/" target="_blank" rel="noopener noreferrer">100.67.16.117</a></td></tr>
+                            <tr><td>Bhayandar Rly Station_TDD (id: 432887)</td><td><a href="https://100.67.16.65/" target="_blank" rel="noopener noreferrer">100.67.16.65</a></td><td><a href="https://100.67.16.169/" target="_blank" rel="noopener noreferrer">100.67.16.169</a></td></tr>
+                            <tr><td>Borivali Rly Station_TDD_PF3 (id: 432879)</td><td><a href="https://100.67.16.77/" target="_blank" rel="noopener noreferrer">100.67.16.77</a></td><td><a href="https://100.67.16.181/" target="_blank" rel="noopener noreferrer">100.67.16.181</a></td></tr>
+                            <tr><td>Borivali Rly Station_TDD_PF8 (id: 433637)</td><td><a href="https://100.67.23.205/" target="_blank" rel="noopener noreferrer">100.67.23.205</a></td><td><a href="https://100.66.145.29/" target="_blank" rel="noopener noreferrer">100.66.145.29</a></td></tr>
+                            <tr><td>Charni Road RLy Station (id: 654005)</td><td><a href="https://10.25.69.241/" target="_blank" rel="noopener noreferrer">10.25.69.241</a></td><td><a href="https://172.20.4.9/" target="_blank" rel="noopener noreferrer">172.20.4.9</a></td></tr>
+                            <tr><td>Church gate Rly Station (id: 654000)</td><td><a href="https://100.92.86.113/" target="_blank" rel="noopener noreferrer">100.92.86.113</a></td><td><a href="https://172.20.4.11/" target="_blank" rel="noopener noreferrer">172.20.4.11</a></td></tr>
+                            <tr><td>Dadar Central Rly Station (id: 654010)</td><td><a href="https://100.98.173.9/" target="_blank" rel="noopener noreferrer">100.98.173.9</a></td><td><a href="https://172.20.4.12/" target="_blank" rel="noopener noreferrer">172.20.4.12</a></td></tr>
+                            <tr><td>Dadar Western Rly Station (id: 654007)</td><td><a href="https://100.98.173.1/" target="_blank" rel="noopener noreferrer">100.98.173.1</a></td><td><a href="https://172.20.4.6/" target="_blank" rel="noopener noreferrer">172.20.4.6</a></td></tr>
+                            <tr><td>Dahisar Rly Station (id: 432883)</td><td><a href="https://100.67.16.73/" target="_blank" rel="noopener noreferrer">100.67.16.73</a></td><td><a href="https://100.67.16.177/" target="_blank" rel="noopener noreferrer">100.67.16.177</a></td></tr>
+                            <tr><td>Goregaon Rly station (id: 432872)</td><td><a href="https://100.67.16.89/" target="_blank" rel="noopener noreferrer">100.67.16.89</a></td><td><a href="https://100.67.16.193/" target="_blank" rel="noopener noreferrer">100.67.16.193</a></td></tr>
+                            <tr><td>Grant Road Rly Station (id: 654009)</td><td><a href="https://10.25.69.249/" target="_blank" rel="noopener noreferrer">10.25.69.249</a></td><td><a href="https://172.20.4.8/" target="_blank" rel="noopener noreferrer">172.20.4.8</a></td></tr>
+                            <tr><td>Jogeshwari Rly Station (id: 432870)</td><td><a href="https://100.67.16.97/" target="_blank" rel="noopener noreferrer">100.67.16.97</a></td><td><a href="https://100.67.16.201/" target="_blank" rel="noopener noreferrer">100.67.16.201</a></td></tr>
+                            <tr><td>Kandivali Rly Station (id: 432877)</td><td><a href="https://100.67.16.81/" target="_blank" rel="noopener noreferrer">100.67.16.81</a></td><td><a href="https://100.67.16.185/" target="_blank" rel="noopener noreferrer">100.67.16.185</a></td></tr>
+                            <tr><td>Khar Rly Station (id: 432857)</td><td><a href="https://100.67.16.113/" target="_blank" rel="noopener noreferrer">100.67.16.113</a></td><td><a href="https://100.67.16.217/" target="_blank" rel="noopener noreferrer">100.67.16.217</a></td></tr>
+                            <tr><td>Lower Parel Rly Station (id: 654002)</td><td><a href="https://100.103.120.229/" target="_blank" rel="noopener noreferrer">100.103.120.229</a></td><td><a href="https://172.20.4.4/" target="_blank" rel="noopener noreferrer">172.20.4.4</a></td></tr>
+                            <tr><td>Mahalaxmi Rly Station (id: 654001)</td><td><a href="https://100.103.120.225/" target="_blank" rel="noopener noreferrer">100.103.120.225</a></td><td><a href="https://172.20.4.7/" target="_blank" rel="noopener noreferrer">172.20.4.7</a></td></tr>
+                            <tr><td>Mahim Rly Station (id: 432852)</td><td><a href="https://100.67.16.125/" target="_blank" rel="noopener noreferrer">100.67.16.125</a></td><td><a href="https://100.67.16.229/" target="_blank" rel="noopener noreferrer">100.67.16.229</a></td></tr>
+                            <tr><td>Malad Rly Station (id: 432874)</td><td><a href="https://100.67.16.85/" target="_blank" rel="noopener noreferrer">100.67.16.85</a></td><td><a href="https://100.67.16.189/" target="_blank" rel="noopener noreferrer">100.67.16.189</a></td></tr>
+                            <tr><td>Marine Line Rly Station (id: 654004)</td><td><a href="https://100.98.133.105/" target="_blank" rel="noopener noreferrer">100.98.133.105</a></td><td><a href="https://172.20.4.10/" target="_blank" rel="noopener noreferrer">172.20.4.10</a></td></tr>
+                            <tr><td>Matunga Rly station (id: 432851)</td><td><a href="https://100.67.16.129/" target="_blank" rel="noopener noreferrer">100.67.16.129</a></td><td><a href="https://100.67.16.233/" target="_blank" rel="noopener noreferrer">100.67.16.233</a></td></tr>
+                            <tr><td>Mira Road Rly Station (id: 432886)</td><td><a href="https://100.67.16.69/" target="_blank" rel="noopener noreferrer">100.67.16.69</a></td><td><a href="https://100.67.16.173/" target="_blank" rel="noopener noreferrer">100.67.16.173</a></td></tr>
+                            <tr><td>Mumbai Central Rly Station (id: 451877)</td><td><a href="https://100.73.70.57/" target="_blank" rel="noopener noreferrer">100.73.70.57</a></td><td><a href="https://172.20.4.2/" target="_blank" rel="noopener noreferrer">172.20.4.2</a></td></tr>
+                            <tr><td>Prabhadevi Rly Station (id: 654003)</td><td><a href="https://100.75.131.221/" target="_blank" rel="noopener noreferrer">100.75.131.221</a></td><td><a href="https://172.20.4.5/" target="_blank" rel="noopener noreferrer">172.20.4.5</a></td></tr>
+                            <tr><td>Ram Mandir Rly station (id: 432871)</td><td><a href="https://100.67.16.197/" target="_blank" rel="noopener noreferrer">100.67.16.197</a></td><td><a href="https://100.67.16.93/" target="_blank" rel="noopener noreferrer">100.67.16.93</a></td></tr>
+                            <tr><td>Santacruz Rly Station (id: 432859)</td><td><a href="https://100.67.16.109/" target="_blank" rel="noopener noreferrer">100.67.16.109</a></td><td><a href="https://100.67.16.213/" target="_blank" rel="noopener noreferrer">100.67.16.213</a></td></tr>
+                            <tr><td>Vile Parle Rly Station (id: 432860)</td><td><a href="https://100.67.16.105/" target="_blank" rel="noopener noreferrer">100.67.16.105</a></td><td><a href="https://100.67.16.209/" target="_blank" rel="noopener noreferrer">100.67.16.209</a></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <dialog class="inventory-dialog" id="inventoryPinDialog" aria-labelledby="inventoryPinTitle">
+        <form id="inventoryPinForm" novalidate>
+            <div class="modal-header">
+                <h3 id="inventoryPinTitle">Verify Inventory PIN</h3>
+                <button class="btn-icon" type="button" data-close-dialog="inventoryPinDialog" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <p id="inventoryPinHelp">Enter your PIN to manage site inventory.</p>
+                <label class="inventory-field" for="inventoryPinInput">
+                    <span id="inventoryPinLabel">PIN</span>
+                    <input class="form-input" id="inventoryPinInput" type="password" inputmode="numeric" autocomplete="current-password" pattern="[0-9]{4,12}" minlength="4" maxlength="12" required>
+                </label>
+                <label class="inventory-field" id="inventoryPinConfirmField" for="inventoryPinConfirm" hidden>
+                    <span>Confirm PIN</span>
+                    <input class="form-input" id="inventoryPinConfirm" type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]{4,12}" minlength="4" maxlength="12">
+                </label>
+                <p class="inventory-dialog-error" id="inventoryPinError" role="alert"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" type="button" data-close-dialog="inventoryPinDialog">Cancel</button>
+                <button class="btn btn-primary" id="inventoryPinSubmit" type="submit">Continue</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog class="inventory-dialog inventory-editor-dialog" id="inventoryEditorDialog" aria-labelledby="inventoryEditorTitle">
+        <form id="inventoryEditorForm" novalidate>
+            <div class="modal-header">
+                <h3 id="inventoryEditorTitle">Add Site</h3>
+                <button class="btn-icon" type="button" data-close-dialog="inventoryEditorDialog" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="inventory-dialog-help">Enter the site, hardware counts, and management IP addresses.</p>
+                <div class="inventory-editor-grid">
+                    <label class="inventory-field inventory-field-wide" for="inventoryEditSite">
+                        <span>Site / MRBTS Name</span>
+                        <input class="form-input" id="inventoryEditSite" type="text" maxlength="120" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditPlatform">
+                        <span>Physical platform</span>
+                        <input class="form-input" id="inventoryEditPlatform" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAcoc">
+                        <span>ACOC</span>
+                        <input class="form-input" id="inventoryEditAcoc" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAsoe">
+                        <span>ASOE</span>
+                        <input class="form-input" id="inventoryEditAsoe" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAsib">
+                        <span>ASIB</span>
+                        <input class="form-input" id="inventoryEditAsib" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAbia">
+                        <span>ABIA</span>
+                        <input class="form-input" id="inventoryEditAbia" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAbio">
+                        <span>ABIO</span>
+                        <input class="form-input" id="inventoryEditAbio" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAzha">
+                        <span>AZHA -2500</span>
+                        <input class="form-input" id="inventoryEditAzha" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAheb">
+                        <span>AHEB-1800</span>
+                        <input class="form-input" id="inventoryEditAheb" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditAzna">
+                        <span>AZNA-2300</span>
+                        <input class="form-input" id="inventoryEditAzna" type="number" min="0" step="1" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditMrbtsIp">
+                        <span>MRBTS IP</span>
+                        <input class="form-input" id="inventoryEditMrbtsIp" type="text" inputmode="decimal" placeholder="100.67.16.101" required>
+                    </label>
+                    <label class="inventory-field" for="inventoryEditSwitchIp">
+                        <span>Switch IP</span>
+                        <input class="form-input" id="inventoryEditSwitchIp" type="text" inputmode="decimal" placeholder="100.67.16.205" required>
+                    </label>
+                </div>
+                <p class="inventory-dialog-error" id="inventoryEditorError" role="alert"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" type="button" data-close-dialog="inventoryEditorDialog">Cancel</button>
+                <button class="btn btn-primary" type="submit">Save Site</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog class="inventory-dialog" id="inventoryDeleteDialog" aria-labelledby="inventoryDeleteTitle">
+        <form id="inventoryDeleteForm">
+            <div class="modal-header">
+                <h3 id="inventoryDeleteTitle">Delete Site</h3>
+                <button class="btn-icon" type="button" data-close-dialog="inventoryDeleteDialog" aria-label="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <p id="inventoryDeleteMessage"></p>
+                <p class="inventory-dialog-error" id="inventoryDeleteError" role="alert"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" type="button" data-close-dialog="inventoryDeleteDialog">Cancel</button>
+                <button class="btn btn-danger" id="confirmInventoryDeleteBtn" type="submit">Delete Site</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Column Mapping Configuration Modal -->
+    <div class="modal-backdrop" id="mappingModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Configure Excel / CSV Column Mapping</h3>
+                <button class="btn-icon" id="closeModalBtn" title="Close">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                    Our auto-detection engine mapped the columns in your uploaded file. Review or reassign any field below:
+                </p>
+                <div class="mapping-grid" id="mappingGrid">
+                    <!-- Populated dynamically by app.js -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelModalBtn" class="btn btn-outline">Cancel</button>
+                <button id="saveMappingBtn" class="btn btn-primary">Apply &amp; Load Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Scripts -->
+    <script src="kpiDataSources.js"></script>
+    <script src="userReportDataCompact.js"></script>
+    <script src="daywiseData.js"></script>
+    <script src="sampleData.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

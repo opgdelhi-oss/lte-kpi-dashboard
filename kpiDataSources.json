@@ -1,0 +1,61 @@
+{
+  "sources": {
+    "hourly": {
+      "Final_24 hrs_Hourly 4G KPI Report 24-09-2026.xlsx": {
+        "name": "Final_24 hrs_Hourly 4G KPI Report 24-09-2026.xlsx",
+        "size": 23978615,
+        "modified_ns": 1790327598161510700
+      },
+      "Final_24 hrs_Hourly 4G KPI Report 25-09-2026.xlsx": {
+        "name": "Final_24 hrs_Hourly 4G KPI Report 25-09-2026.xlsx",
+        "size": 27520600,
+        "modified_ns": 1790392920000000000
+      },
+      "Final_24 hrs_Hourly 4G KPI Report 26-09-2026.xlsx": {
+        "name": "Final_24 hrs_Hourly 4G KPI Report 26-09-2026.xlsx",
+        "size": 31472342,
+        "modified_ns": 1790478120000000000
+      }
+    },
+    "daywise": {
+      "Airtel Daywise KPI report 25-09-2026.xlsb": {
+        "name": "Airtel Daywise KPI report 25-09-2026.xlsb",
+        "size": 2328154,
+        "modified_ns": 1790402160000000000
+      },
+      "Airtel Daywise KPI report 26-09-2026.xlsb": {
+        "name": "Airtel Daywise KPI report 26-09-2026.xlsb",
+        "size": 2368701,
+        "modified_ns": 1790482800000000000
+      },
+      "Daywise KPI report 24-09-2026.xlsb": {
+        "name": "Daywise KPI report 24-09-2026.xlsb",
+        "size": 5991365,
+        "modified_ns": 1790332466703789200
+      },
+      "VIL daywise KPI report 25-09-2026.xlsb": {
+        "name": "VIL daywise KPI report 25-09-2026.xlsb",
+        "size": 3744064,
+        "modified_ns": 1790397420000000000
+      },
+      "VIL daywise KPI report 26-09-2026.xlsb": {
+        "name": "VIL daywise KPI report 26-09-2026.xlsb",
+        "size": 3809654,
+        "modified_ns": 1790480220000000000
+      }
+    }
+  },
+  "hourlyFile": "Final_24 hrs_Hourly 4G KPI Report 26-09-2026.xlsx",
+  "daywiseFile": "Airtel Daywise KPI report 26-09-2026.xlsb",
+  "hourlyRecords": 85392,
+  "daywiseRecords": 18468,
+  "hourlyLatestDate": "2026-09-26",
+  "daywiseLatestDate": "2026-09-26",
+  "hourlyDatesAdded": [
+    "2026-09-26"
+  ],
+  "daywiseDatesAdded": [
+    "2026-09-26"
+  ],
+  "updatedAt": "2026-09-27T12:10:55+05:30"
+}
